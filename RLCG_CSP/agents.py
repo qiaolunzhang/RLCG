@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 
 class Agent(object):
-    '''Base Class of Agent
-  '''
+    """Base Class of Agent
+  """
 
     def __init__(self, initial_env=None, capacity=10000):
         self.env = initial_env  # the environment would be one cutting stock object

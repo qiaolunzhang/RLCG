@@ -232,7 +232,7 @@ class CuttingStock(object):
 
     ## one CG iteration (env step = agent act) --> update the environment, reward, is_done..
     def step(self,action,Train = True):
-   	
+
         ## use this info to get stay info and just left info
         last_basis= self.ColumnIs_Basic[:]
         last_basis = np.append(last_basis,0)
@@ -322,11 +322,11 @@ class CuttingStock(object):
         self.Shadow_Price = dual_variables
 
         if self.n == 50:
-        	conv_steps = 5
+            conv_steps = 5
         elif self.n == 200 or 500:
-        	conv_steps = 10
+            conv_steps = 10
         elif self.n == 750:
-        	conv_steps = 10
+            conv_steps = 10
 
         subproblem,columns_to_select,reduced_costs = self.solve_subproblem_return_actions(dual_variables)
         

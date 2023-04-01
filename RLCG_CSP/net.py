@@ -5,8 +5,8 @@ import os
 import importlib
 import Parameters
 
-class BipartiteGNN(K.Model):
 
+class BipartiteGNN(K.Model):
     '''
     Initialization of the different modules and attributes
     Attributes : 
@@ -17,22 +17,22 @@ class BipartiteGNN(K.Model):
     - activation : Activation function used in the neurons
     - initializer : Weights initializer
     '''
-    def __init__(self, embedding_size = 32, cons_num_features = 2, 
-        vars_num_features = 9, learning_rate = 1e-3, 
-        activation = K.activations.relu, initializer = K.initializers.Orthogonal):
-    
+
+    def __init__(self, embedding_size=32, cons_num_features=2,
+                 vars_num_features=9, learning_rate=1e-3,
+                 activation=K.activations.relu, initializer=K.initializers.Orthogonal):
+
         self.seed_value = Parameters.seed
         tf.random.set_seed(self.seed_value)
         super(BipartiteGNN, self).__init__()
-
 
         self.embedding_size = embedding_size
         self.cons_num_features = cons_num_features
         self.vars_num_features = vars_num_features
         self.learning_rate = learning_rate
         self.activation = activation
-        self.initializer = initializer(seed = self.seed_value)
-        self.optimizer = tf.optimizers.Adam(learning_rate=self.learning_rate) 
+        self.initializer = initializer(seed=self.seed_value)
+        self.optimizer = tf.optimizers.Adam(learning_rate=self.learning_rate)
 
         # constraints embedding layer
         self.cons_embedding = K.Sequential([
@@ -52,11 +52,11 @@ class BipartiteGNN(K.Model):
 
         # Representations updater for the constraints, called after the agregation
         self.cons_representation_NN = K.Sequential([
-            K.layers.Dense(units=self.embedding_size, activation=self.activation, kernel_initializer=self.initializer),  
+            K.layers.Dense(units=self.embedding_size, activation=self.activation, kernel_initializer=self.initializer),
         ])
         # Representations updater for the variables/columns, called after the agregation
         self.vars_representation_NN = K.Sequential([
-            K.layers.Dense(units=self.embedding_size, activation=self.activation, kernel_initializer=self.initializer),  
+            K.layers.Dense(units=self.embedding_size, activation=self.activation, kernel_initializer=self.initializer),
         ])
 
         # NN for final output, i.e., one unit logit output
@@ -72,18 +72,19 @@ class BipartiteGNN(K.Model):
         # Order set for loading/saving the model
         self.variables_topological_order = [v.name for v in self.variables]
 
-
         self.seed_value = Parameters.seed
         tf.random.set_seed(self.seed_value)
+
     '''
     Build function, sets the input shapes. Called during initialization
     '''
+
     def build(self):
         self.cons_embedding.build([None, self.cons_num_features])
         self.var_embedding.build([None, self.vars_num_features])
-        self.join_features_NN.build([None, self.embedding_size*2])
-        self.cons_representation_NN.build([None, self.embedding_size*2])
-        self.vars_representation_NN.build([None, self.embedding_size*2])
+        self.join_features_NN.build([None, self.embedding_size * 2])
+        self.cons_representation_NN.build([None, self.embedding_size * 2])
+        self.vars_representation_NN.build([None, self.embedding_size * 2])
         self.output_module.build([None, self.embedding_size])
         self.built = True
 
@@ -95,6 +96,7 @@ class BipartiteGNN(K.Model):
 
     Output : logit vector for the variables nodes, shape (None,1)
     '''
+
     def call(self, inputs):
         # print("The code is running", inputs[0].shape)
 
@@ -111,18 +113,18 @@ class BipartiteGNN(K.Model):
         # ==== First Pass : Variables -> Constraints ====
         # compute joint representations
         joint_features = self.join_features_NN(
-                tf.concat([
-                    tf.gather(
-                        cons_features,
-                        axis=0,
-                        indices=edge_indices[0])
-                    ,
-                    tf.gather(
-                        vars_features,
-                        axis=0,
-                        indices=edge_indices[1])
-                    ### change this number to edge weights (patterns)
-                ],1)
+            tf.concat([
+                tf.gather(
+                    cons_features,
+                    axis=0,
+                    indices=edge_indices[0])
+                ,
+                tf.gather(
+                    vars_features,
+                    axis=0,
+                    indices=edge_indices[1])
+                ### change this number to edge weights (patterns)
+            ], 1)
         )
 
         # Aggregation step
@@ -132,24 +134,22 @@ class BipartiteGNN(K.Model):
             shape=[cons_features.shape[0], self.embedding_size]
         )
         # Constraints representations update
-        output_cons = self.cons_representation_NN(tf.concat([output_cons,cons_features],1))
-
-
+        output_cons = self.cons_representation_NN(tf.concat([output_cons, cons_features], 1))
 
         # ==== Second Pass : Constraints -> Variables ====
         # compute joint representations
         joint_features = self.join_features_NN(
-                tf.concat([
-                    tf.gather(
-                        output_cons,
-                        axis=0,
-                        indices=edge_indices[0])
-                    ,
-                    tf.gather(
-                        vars_features,
-                        axis=0,
-                        indices=edge_indices[1])
-                ],1)
+            tf.concat([
+                tf.gather(
+                    output_cons,
+                    axis=0,
+                    indices=edge_indices[0])
+                ,
+                tf.gather(
+                    vars_features,
+                    axis=0,
+                    indices=edge_indices[1])
+            ], 1)
         )
 
         # Aggregation step
@@ -159,7 +159,7 @@ class BipartiteGNN(K.Model):
             shape=[vars_features.shape[0], self.embedding_size]
         )
         # Variables representations update
-        output_vars = self.vars_representation_NN(tf.concat([output_vars,vars_features],1))
+        output_vars = self.vars_representation_NN(tf.concat([output_vars, vars_features], 1))
 
         # ==== Final output from the variables representations (constraint nodes are ignored)
         output = self.output_module(output_vars)
@@ -168,6 +168,7 @@ class BipartiteGNN(K.Model):
     '''
     Save model and current weights to a given path
     '''
+
     def save_state(self, path):
         import pickle
         with open(path, 'wb') as f:
@@ -178,6 +179,7 @@ class BipartiteGNN(K.Model):
     '''
     Load an existing model from a given path
     '''
+
     def restore_state(self, path):
         import pickle
         with open(path, 'rb') as f:
@@ -197,7 +199,6 @@ class BipartiteGNN(K.Model):
             v = [v for v in model.variables if v.name == v_name][0]
             v.assign(config[v])
         return model
-       
 
     '''
     Training/Test function
@@ -208,9 +209,10 @@ class BipartiteGNN(K.Model):
     Output:
     tuple(Loss, Accuracy, Recall, TNR) : Metrics
     '''
-    def train_or_test(self, data, labels, totals_0, actions_0,action_info, train=False):
+
+    def train_or_test(self, data, labels, totals_0, actions_0, action_info, train=False):
         mean_loss = 0
-  
+
         batches_counter = 0
 
         ###########################################################
@@ -226,7 +228,6 @@ class BipartiteGNN(K.Model):
 
             # action = actions_0[batches_counter].tolist()
 
-
             # all_actions = action_info[batches_counter][1].tolist()
 
             # print(all_actions)
@@ -241,13 +242,16 @@ class BipartiteGNN(K.Model):
                     ######### may need to change to self.call?
                     logits = self.call(input_tuple)
                     # print(total_0)
-                    label[0:-total_0[0]] =  logits[0:-total_0[0]] ## do not count the loss from the nodes already in the basis
+                    label[0:-total_0[0]] = logits[
+                                           0:-total_0[0]]  ## do not count the loss from the nodes already in the basis
                     # print(abel[act_index])
                     # print()
                     # print(logits[-total_0[0]:-1])
                     # print()
-                    loss = tf.keras.metrics.mean_squared_error(label,logits) ## should not be mean_squared_error as it's then scaled down by number of nodes
-                    loss = (loss * label.shape[0]) / total_0[0]  ## this is a quick fix, as there are far less action nodes compared to 
+                    loss = tf.keras.metrics.mean_squared_error(label,
+                                                               logits)  ## should not be mean_squared_error as it's then scaled down by number of nodes
+                    loss = (loss * label.shape[0]) / total_0[
+                        0]  ## this is a quick fix, as there are far less action nodes compared to
                     ## again, do we calculate the loss using the nodes we are not selecting?
 
                     # print(loss)
@@ -257,7 +261,7 @@ class BipartiteGNN(K.Model):
             # If no optimizer instance set, no training is performed, give outputs and metrics only
             else:
                 logits = self.call(input_tuple)
-                loss = tf.keras.metrics.mean_squared_error(label,logits)
+                loss = tf.keras.metrics.mean_squared_error(label, logits)
 
             ## these are for classification
             # prediction = tf.round(tf.nn.sigmoid(logits))
@@ -268,11 +272,9 @@ class BipartiteGNN(K.Model):
 
             # Batch loss, accuracy, confusion matrix
             mean_loss += loss
-            batches_counter += 1 
+            batches_counter += 1
             # confusion_mat += confusion_matrix(labels, prediction)
 
         # Batch average loss
         mean_loss /= batches_counter
         return mean_loss
-
-

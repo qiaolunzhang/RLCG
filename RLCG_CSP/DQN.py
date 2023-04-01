@@ -123,8 +123,7 @@ class DQNAgent(Agent):
         return loss
 
     #### the learning code
-    def learning_method(self, instance, gamma, learning_rate, epsilon, 
-                        display):
+    def learning_method(self, instance, gamma, learning_rate, epsilon, display):
 
         epochs = self.epochs
         ###########
